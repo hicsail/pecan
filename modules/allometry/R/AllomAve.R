@@ -51,7 +51,7 @@
 #' 
 #' @export
 #' 
-AllomAve <- function(pfts,components=6,outdir=NULL,con=NULL,field=NULL,
+AllomAve <- function(pfts,components=6,use = "Bg",outdir=NULL,con=NULL,field=NULL,
                      parm=system.file("data/Table3_GTR-NE-319.v2.csv", package = "PEcAn.allometry"),
                      ngibbs=5000,nchain=3,
                      dmin=0.1,dmax=500){
@@ -106,9 +106,9 @@ AllomAve <- function(pfts,components=6,outdir=NULL,con=NULL,field=NULL,
       obs <- list()
       for(i in 1:nchain){
         if(component == 40){
-          allom.out = allom.BayesFit(allom,ngibbs,"exp",dmin,dmax)
+          allom.out = allom.BayesFit(allom,use,ngibbs,"exp",dmin,dmax)
         } else {
-          allom.out = allom.BayesFit(allom,ngibbs,dmin=dmin,dmax=dmax)
+          allom.out = allom.BayesFit(allom,use,ngibbs,dmin=dmin,dmax=dmax)
         }
         mc[[i]] <- as.mcmc(allom.out[["mc"]][sel,])
         obs[[i]] <- allom.out[["obs"]]

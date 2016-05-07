@@ -36,6 +36,9 @@
 #'                   \item{Xtype} {type of measurement on the X}
 #'                   \item{spp}   { - USFS species code}
 #'          }
+#'          
+#' @param use    Which models to fit: Bg = global; loc; Spp; SL = Spp & Loc         
+#'          
 #' @param nrep - number of MCMC replicates
 #'
 #' @param form   functional form of the allometry: "power" vs "exp"
@@ -54,7 +57,7 @@
 #' @author Michael Dietze
 #' 
 #' 
-allom.BayesFit <- function(allom,nrep=10000,form="power",dmin=0.1,dmax=500) {
+allom.BayesFit <- function(allom,use="Bg",nrep=10000,form="power",dmin=0.1,dmax=500) {
 
   ## check for valid inputs
   if(!(form %in% ('power'))){
@@ -112,44 +115,71 @@ allom.BayesFit <- function(allom,nrep=10000,form="power",dmin=0.1,dmax=500) {
   print(c("Dropping allom rows: ", which(!(1:nrow(allom[['parm']]) %in% ntally))))
 
   nfield = length(allom[['field']])
-  nsite  = length(ntally[ntally>0]) + nfield
+  nloc  = length(ntally[ntally>0]) + nfield
   my.spp = unique(spp)
   nspp = length(my.spp)
   
-  if(nsite == 0){
+  if(nloc == 0){
     print(c("allomBayesFit no data"))
     return(NULL)
   }
   
   ## define priors
   s1  = s2 = 0.1 # IG prior on the within-study variance
-  mu0 = c(0.2,8/3) # normal prior mean on global mean
-  V0  = matrix(c(100,0,0,100),2,2) # normal prior variance on global mean
+  mu0 = mu0S = c(0.2,8/3) # normal prior mean on global mean
+  V0  = V0S = matrix(c(100,0,0,100),2,2) # normal prior variance on global mean
   V0I = solve(V0)
+  V0SI = solve(V0S)
   m0V0 = t(mu0)%*%V0I %*% mu0
+  m0SV0S = t(mu0S)%*%V0SI %*% mu0S
   V0Imu0 = V0I %*% mu0
-  v = 0.1         ## wishart prior on across-study variance
-  S = diag(0.1,2) 
+  V0SImu0 = V0SI %*% mu0S
+  v = vS = 0.1         ## wishart prior on across-study variance
+  S = SS = diag(0.1,2) 
 
-  ## declare storage
-  b0GIBBS  = matrix(0,nrep,nsite)
-  b1GIBBS  = matrix(0,nrep,nsite)
-  muGIBBS  = matrix(0,nrep,2)
-  sigGIBBS = rep(NA,nrep)
-  tauGIBBS = matrix(0,nrep,3)
-  DGIBBS   = rep(NA,nrep)
-  BgGIBBS  = matrix(0,nrep,2)
-  SgGIBBS  = rep(NA,nrep)
-  DgGIBBS  = rep(NA,nrep)
-  
-  ## initialization
-  mu  = mu0
-  b0  = rep(mu[1],nsite)
-  b1  = rep(mu[2],nsite)
-  tau = diag(c(1,1))
-  tauI= solve(tau)
-  sigma = 0.3
-  sinv  = 1/sigma
+  ## storage, initialization, & priors
+  if("loc" %in% use){  ## loc parameters
+    b0GIBBloc  = matrix(0,nrep,nloc)  ## loc intercept
+    b1GIBBloc  = matrix(0,nrep,nloc)  ## loc slope
+    muGIBBloc  = matrix(0,nrep,2)      ## hierarchical mean
+    sigGIBBloc = rep(NA,nrep)          ## within study variance
+    tauGIBBloc = matrix(0,nrep,3)      ## across study variance
+    DGIBBloc   = rep(NA,nrep)          ## Deviance
+    mu  = mu0
+    b0  = rep(mu[1],nloc)
+    b1  = rep(mu[2],nloc)
+    tau = diag(c(1,1))
+    tauI= solve(tau)
+    sigma = 0.3
+    sinv  = 1/sigma
+    Dloc = 0
+  }
+  if("spp" %in% use){  ## loc parameters
+    b0GIBBspp  = matrix(0,nrep,nspp)  ## spp intercept
+    b1GIBBspp  = matrix(0,nrep,nspp)  ## spp slope
+    muGIBBspp  = matrix(0,nrep,2)      ## hierarchical mean
+    sigGIBBspp = rep(NA,nrep)          ## within study variance
+    tauGIBBspp = matrix(0,nrep,3)      ## across study variance
+    DGIBBspp   = rep(NA,nrep)          ## Deviance
+    muS  = mu0
+    b0S  = rep(mu[1],nspp)
+    b1S  = rep(mu[2],nspp)
+    tauS = diag(c(1,1))
+    tauSI= solve(tauS)
+    sigmaS = 0.3
+    sinvS  = 1/sigmaS
+    DS = 0
+  }
+  if("Bg" %in% use){
+    BgGIBBS  = matrix(0,nrep,2)
+    SgGIBBS  = rep(NA,nrep)
+    DgGIBBS  = rep(NA,nrep)
+    Sg = 1
+    Bg = mu0
+    SgI = 1/Sg
+    Dg = 0
+  }  
+  ## state initialization
   data  = allom[['field']]
   if(length(ntally) > 0){
     for(i in 1:length(ntally)){
@@ -157,10 +187,7 @@ allom.BayesFit <- function(allom,nrep=10000,form="power",dmin=0.1,dmax=500) {
     }
   }
   x=y<-NULL
-  Sg = 1
-  Bg = mu0
-  SgI = 1/Sg
-  D = Dg = 0
+
 
   ## MCMC LOOP
   pb <- txtProgressBar(min = 0, max = nrep, style = 3)
@@ -227,8 +254,8 @@ allom.BayesFit <- function(allom,nrep=10000,form="power",dmin=0.1,dmax=500) {
     #diagnostics
     pdf("DvBscatter.pdf")
     plot(1,1,type='n',log='xy',xlim=c(0.1,1000),ylim=c(0.0001,100000))
-    BETA <- matrix(NA,nsite,2)
-    for(i in 1:nsite){
+    BETA <- matrix(NA,nloc,2)
+    for(i in 1:nloc){
       points(data[[i]]$x,data[[i]]$y,col=i)
       BETA[i,] <- coef(lm(log10(data[[i]]$y) ~ log10(data[[i]]$x)))
     }
@@ -237,13 +264,14 @@ allom.BayesFit <- function(allom,nrep=10000,form="power",dmin=0.1,dmax=500) {
     plot(BETA)
     dev.off()
   }
-
-  if(nsite > 1){ #Hierarchical Bayes Fit Model
+    
+  ## loc-effect model
+  if(nloc > 1 && "loc" %in% use){ 
   
     tauImu = tauI %*% mu
     u1 <- s1
     u2 <- s2
-    for(j in 1:nsite){
+    for(j in 1:nloc){
       
       ## Update study-level regression parameters
       X = cbind(rep(1,length(data[[j]]$x)),log(data[[j]]$x))
@@ -280,67 +308,117 @@ allom.BayesFit <- function(allom,nrep=10000,form="power",dmin=0.1,dmax=500) {
     tauI  <- solve(tau)
     
     ## Store Parameter estimates
-    b0GIBBS[g,] <- b0  
-    b1GIBBS[g,] <- b1
-    muGIBBS[g,] <- mu
-    sigGIBBS[g] <- sigma
-    tauGIBBS[g,] <- vech(tau)
-    DGIBBS[g]  <- sum(D)
-
-
+    b0GIBBloc[g,] <- b0  
+    b1GIBBloc[g,] <- b1
+    muGIBBloc[g,] <- mu
+    sigGIBBloc[g] <- sigma
+    tauGIBBloc[g,] <- vech(tau)
+    DGIBBloc[g]  <- sum(D)
     
+  } ## end loc   
     
-    } ## end (if nsite > 1)   
-    
-    ## Fit "random species" hierarchical model -------------------------------------
-    if(nspp > 1){
+  ## Fit "random species" hierarchical model -------------------------------------
+  if(nspp > 1 && "spp" %in% use){
       
+    tauSImuS = tauIS %*% muS
+    u1 <- s1S
+    u2 <- s2S
+    for(j in 1:nspp){
       
+      ## prep data
+      X <- Y <- NULL
+      for(k in which(spp == my.spp[j])){
+        X <- c(X,data[[k]]$x)
+        Y <- c(Y,data[[k]]$y)
+      }
+      Y = log(Y)
+      X = cbind(rep(1,length(X)),log(X))
       
+      ## Update spp-level regression parameters
+      bigV <- solve(sinvS*t(X)%*%X + tauIS)
+      littlev <- sinvS*t(X) %*% Y + tauImuS
+      beta <- t(rmvnorm(1,bigV %*% littlev,bigV))
+      b0S[j] <- beta[1]
+      b1S[j] <- beta[2]
+      
+      ## Update study-level error
+      u1 <- u1 + nrow(X)/2
+      u2 <- u2 + 0.5*crossprod(Y-X %*% beta)
+      
+      ## Calculate Deviance
+      DS[j] <- -2*sum(dnorm(Y,X%*%beta,sqrt(sigmaS),log=TRUE))
     }
-
-    ## Fit alternative non-heirarchical model
-    X <- Y <- NULL
-    for(i in 1:nsite){
-      X <- c(X,data[[i]]$x)
-      Y <- c(Y,data[[i]]$y)
+    sinvS <- rgamma(1,u1,u2)    ## precision
+    sigmaS <- 1/sinvS  ## variance
+    
+    ## Update across-study means
+    BS = cbind(b0S,b1S)
+    bigV <- solve( nrow(BS)*tauIS + V0IS)
+    littlev <- V0SImu0S
+    for(i in 1:nrow(BS)){
+      littlev <- littlev + tauSI %*% BS[i,]
     }
-    Y = log(Y)
-    X = cbind(rep(1,length(X)),log(X))
-    bigV <- solve(SgI*t(X)%*%X + V0I )
-    littlev <- SgI*t(X) %*% Y + V0Imu0
-    Bg  <- t(rmvnorm(1,bigV %*% littlev,bigV))
-    u1  <- s1 + nrow(X)/2
-    u2  <- s2 + 0.5*crossprod(Y-X %*% Bg)
-    SgI <- rgamma(1,u1,u2)    ## precision
-    Sg  <- 1/SgI  ## variance
-    Dg <- -2*sum(dnorm(Y,X%*%Bg,sqrt(Sg),log=TRUE))
+    muS <- t(rmvnorm(1,bigV %*% littlev,bigV))
     
+    ## Update across-study variance
+    u1 <- vS + nrow(BS)
+    u2 <- SS + crossprod(BS - t(matrix(muS,nrow=2,ncol=nrow(BS))))
+    tauS <- riwish(u1,u2)
+    tauSI  <- solve(tauS)
     
-    BgGIBBS[g,] <- Bg
-    SgGIBBS[g]  <- Sg
-    DgGIBBS[g]  <- Dg  
+    ## Store Parameter estimates
+    b0GIBBspp[g,] <- b0S  
+    b1GIBBspp[g,] <- b1S
+    muGIBBspp[g,] <- muS
+    sigGIBBspp[g] <- sigmaS
+    tauGIBBspp[g,] <- vech(tauS)
+    DGIBBspp[g]  <- sum(DS)    
+  }
 
+    ## non-hierarchical model
+    if("Bg" %in% use){
+      X <- Y <- NULL
+      for(i in 1:nloc){
+        X <- c(X,data[[i]]$x)
+        Y <- c(Y,data[[i]]$y)
+      }
+      Y = log(Y)
+      X = cbind(rep(1,length(X)),log(X))
+      bigV <- solve(SgI*t(X)%*%X + V0I )
+      littlev <- SgI*t(X) %*% Y + V0Imu0
+      Bg  <- t(rmvnorm(1,bigV %*% littlev,bigV))
+      u1  <- s1 + nrow(X)/2
+      u2  <- s2 + 0.5*crossprod(Y-X %*% Bg)
+      SgI <- rgamma(1,u1,u2)    ## precision
+      Sg  <- 1/SgI  ## variance
+      Dg <- -2*sum(dnorm(Y,X%*%Bg,sqrt(Sg),log=TRUE))
+      
+      BgGIBBS[g,] <- Bg
+      SgGIBBS[g]  <- Sg
+      DgGIBBS[g]  <- Dg  
+    }
+    
     setTxtProgressBar(pb,g)
   }## END MCMC LOOP
   close(pb)
   
-  if(nsite <= 1){
-    b0GIBBS[1:nrep,] <- 0  
-    b1GIBBS[1:nrep,] <- 0
-    muGIBBS[1:nrep,] <- 0
-    sigGIBBS[1:nrep] <- 0
-    tauGIBBS[1:nrep,] <- 0
-    DGIBBS[1:nrep]  <- 0
+  out = NULL
+  if("loc" %in% use){
+    loc <- cbind(b0GIBBloc,b1GIBBloc,muGIBBloc,sigGIBBloc,tauGIBBloc,DGIBBloc)
+    colnames(loc) <- c(paste("b0",1:nloc,sep="."),
+                       paste("b1",1:nloc,sep="."),
+                       "mu0","mu1",
+                       "sigma",
+                       "tau11","tau12","tau22","Dloc")
+    
+    out <- cbind(out,loc)
   }
+  if("Bg" %in% use){
+    global = cbind(BgGIBBS,SgGIBBS,DgGIBBS)
+    colnames(global) =  c("Bg0","Bg1","Sg","Dg")
+    out <- cbind(out,global)
+  } 
   
-  out <- cbind(b0GIBBS,b1GIBBS,muGIBBS,sigGIBBS,tauGIBBS,DGIBBS,BgGIBBS,SgGIBBS,DgGIBBS)
-  colnames(out) <- c(paste("b0",1:nsite,sep="."),
-                  paste("b1",1:nsite,sep="."),
-                  "mu0","mu1",
-                  "sigma",
-                  "tau11","tau12","tau22","D",
-                  "Bg0","Bg1","Sg","Dg")
   return(list(mc=as.mcmc(out),obs=data))
   
 } ## END allom.BayesFit
