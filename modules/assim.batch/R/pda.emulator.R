@@ -254,7 +254,8 @@ pda.emulator <- function(settings, params.id = NULL, param.names = NULL, prior.i
     
     # retrieve n
     n.of.obs <- sapply(inputs,`[[`, "n") 
-    names(n.of.obs) <- sapply(model.out[[1]],names)
+#    names(n.of.obs) <- sapply(model.out[[1]],names)
+    names(n.of.obs) <- sapply(inputs,function(x){names(x$obs)})
       
     ## GPfit optimization routine assumes that inputs are in [0,1] Instead of drawing from parameters,
     ## we draw from probabilities
@@ -327,6 +328,9 @@ pda.emulator <- function(settings, params.id = NULL, param.names = NULL, prior.i
       SS <- SS.list
     }
       
+    current.step <- "pre-build.GP"
+    save(list = ls(all.names = TRUE),envir=environment(),file=pda.restart.file)
+    
     logger.info(paste0("Using 'GPfit' package for Gaussian Process Model fitting."))
     ## Generate emulator on SS, return a list
     GPmodel <- lapply(SS, function(x) GPfit::GP_fit(X = x[, -ncol(x), drop = FALSE], Y = x[, ncol(x), drop = FALSE]))
@@ -398,6 +402,9 @@ pda.emulator <- function(settings, params.id = NULL, param.names = NULL, prior.i
     mix <- "each"
   }
   
+  current.step <- "pre-MCMC"
+  save(list = ls(all.names = TRUE),envir=environment(),file=pda.restart.file)
+  
   # start the clock
   ptm.start <- proc.time()
   
@@ -405,8 +412,6 @@ pda.emulator <- function(settings, params.id = NULL, param.names = NULL, prior.i
   dcores <- parallel::detectCores() - 1
   ncores <- min(max(dcores, 1), settings$assim.batch$chain)
   cl <- parallel::makeCluster(ncores, type="FORK")
-  current.step <- "pre-MCMC"
-  save(list = ls(all.names = TRUE),envir=environment(),file=pda.restart.file)
   
   ## Sample posterior from emulator
   mcmc.out <- parallel::parLapply(cl, 1:settings$assim.batch$chain, function(chain) {
@@ -428,12 +433,12 @@ pda.emulator <- function(settings, params.id = NULL, param.names = NULL, prior.i
   })
   
   parallel::stopCluster(cl)
-  current.step <- "post-MCMC"
-  save(list = ls(all.names = TRUE),envir=environment(),file=pda.restart.file)
   
   # Stop the clock
   ptm.finish <- proc.time() - ptm.start
   logger.info(paste0("Emulator MCMC took ", paste0(round(ptm.finish[3])), " seconds for ", paste0(settings$assim.batch$iter), " iterations."))
+  current.step <- "post-MCMC"
+  save(list = ls(all.names = TRUE),envir=environment(),file=pda.restart.file)
   
   
   mcmc.samp.list <- list()

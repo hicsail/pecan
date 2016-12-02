@@ -94,7 +94,9 @@ pda.calc.error <-function(settings, con, model_out, run.id, inputs, bias.terms){
       
     } else { # Gaussian
       
-      SS <- sum((model_out[[k]] - inputs[[k]]$obs)^2, na.rm = TRUE)
+##      SS <- sum((model_out[[k]] - inputs[[k]]$obs)^2, na.rm = TRUE)
+      cname <- colnames(model_out[[k]])
+      SS <- sum((model_out[[k]][,grep(".m",cname,fixed = TRUE)] - as.numeric(model_out[[k]][,grep(".o",cname,fixed = TRUE)]))^2, na.rm = TRUE)
       
       pda.errors[[k]] <- SS 
       SSdb[[k]]       <- log(SS)

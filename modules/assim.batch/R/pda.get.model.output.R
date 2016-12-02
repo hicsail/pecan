@@ -71,10 +71,10 @@ pda.get.model.output <- function(settings, run.id, bety, inputs) {
     
     
     # read model output
-    model.raw <- as.data.frame(read.output(run.id, outdir = file.path(settings$host$outdir, run.id),
+    model.raw <- as.data.frame(read.output(run.id, outdir = file.path(settings$outdir,"out", run.id),
                                            start.year, end.year, variables = vars))
     
-    if(length(model.raw) == 0) {   # Probably indicates model failed entirely
+    if(length(model.raw) == 0 | all(is.na(model.raw))) {   # Probably indicates model failed entirely
       return(NA)
     }
     
@@ -86,7 +86,7 @@ pda.get.model.output <- function(settings, run.id, bety, inputs) {
     # figure out which variable names to be used in the derivation expression (i.e. non-UST)
     # and calculate the derived variable
     vars.used.ind <- which(sapply(model.var, function(v) all(v %in% vars)) == TRUE)
-    sapply(model.var[[vars.used.ind]], function(x) assign(x, model.raw[x], envir = .GlobalEnv))
+    sapply(model.var[[vars.used.ind]], function(x) assign(x, model.raw[x], envir = .GlobalEnv))  ## why is the output of this line not assigned to anything?
     out <- eval(parse(text = expr[[vars.used.ind]]))
     
     
@@ -114,8 +114,11 @@ pda.get.model.output <- function(settings, run.id, bety, inputs) {
     dat <- PEcAn.benchmark::align_data(model.calc = model, obvs.calc = inputs[[k]]$data, var = data.var, 
                       start_year = start.year, end_year = end.year, align_method = inputs[[k]]$align.method)
 
-    model.out[[k]] <- dat[,colnames(dat) %in% paste0(data.var,".m"), drop = FALSE]
-    colnames(model.out[[k]]) <- data.var
+#    model.out[[k]] <- dat[,colnames(dat) %in% paste0(data.var,".m"), drop = FALSE]
+#    colnames(model.out[[k]]) <- data.var
+    ## in the commented out version, we take data that's perfectly aligned then break the alignment
+    ## by only returning half. Instead, let's return both and then we don't have to pass them separately later
+    model.out[[k]] <- dat
   }
   
   return(model.out)
