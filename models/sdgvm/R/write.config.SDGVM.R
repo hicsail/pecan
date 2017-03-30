@@ -153,7 +153,7 @@ write.config.SDGVM <- function(defaults, trait.values, settings, run.id) {
                   "FOO","clumping_factor","Vcmax","FOO","Jmax","FOO",
                   "cuticular_cond","stomatal_slope")
   nb <- breaks[length(breaks)-5:4] + c(1,-1)
-  default.pfts <- read.table(textConnection(input.text[nb[1]:nb[2]]),header=FALSE)
+  default.pfts <- read.table(textConnection(input.text[nb[1]:nb[2]]),header=FALSE,stringsAsFactors = FALSE)
   colnames(default.pfts) <- parm.names
   updated.pfts <- default.pfts
   pft.lut <- read.table(system.file("PFTs.txt",package = "PEcAn.SDGVM"),header=TRUE,stringsAsFactors = FALSE) ## PFT Look up table to map BETY pfts to defaults
@@ -204,9 +204,16 @@ write.config.SDGVM <- function(defaults, trait.values, settings, run.id) {
   }
   
   ## write updated PFTs
-  
+  for(k in seq_len(nrow(default.pfts))){
+    input.text[nb-1+k] <- paste(updated.pfts[k,],collapse = "  ")
+  }
   ## write new PFTs
-  #input.text <- append(input.text,PFT.string,after = 28)
+  if(nrow(updated.pfts) > nrow(default.pfts)){
+    for(k in (nrow(default.pfts)+1):nrow(updated.pfts)){
+      PFT.string <- paste(updated.pfts[k,],collapse = "  ")
+      input.text <- append(input.text,PFT.string,after = nb[2])
+    }
+  }
   
   ## write general input file
   writeLines(input.text, con = input.file)  
