@@ -1,0 +1,2 @@
+PFT                       Default
+temperate.deciduous       Dc_Bl

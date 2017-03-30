@@ -17,7 +17,7 @@ UNIX
 1998 2008
 PIXEL DAILY 11 int gpp npp lfl lfn nps swf lai tmp prc hum srp rsp nep swc pet ssm evt trn bse rof qdr qdf lrg str rtr lrm lbm sbm rbm dln dsn drn fpr int cga lgb cgc kgb c01 c02 c03 c04 c05 c06 c07 c08 f01 f02 f03 f04 f05 f06 f07 f08 f09 f10 f11 f12 f13 f14 f15 tls wls
 SUBPIXEL MONTHLY 10 gpp lai bud cov npp lfn lfl
-SNAPSHOTS 2001 2007
+SNAPSHOTS
 
 BARE  1.0
 CITY  0.0
@@ -32,9 +32,6 @@ Dc_Nl 1.0 1 2 0.0   0 200 0.240 0.83 3.6  0.01500   210 360 360  0.003 0.250  21
 Dc_Bl_O 1.0 1 2 0.0   0 200 0.519 5.50 2.2  0.0116  210 360 360  0.003 0.250  21 1.0  8.0 120.0 21  5   0.0  100.0 0.010 0.004 0.10 0.85 8.4 20.49 -2.89 1.97 0.005 6.0
 
 1   100 Dc_Bl
-2   100 Dc_Bl_O 
-3   100 C3
-4   100 C4
 
 0.05 0.5 1000
 
@@ -43,9 +40,4 @@ Dc_Bl_O 1.0 1 2 0.0   0 200 0.519 5.50 2.2  0.0116  210 360 360  0.003 0.250  21
 21 55 1.4 0.9 0.2 0.366 0.42 200.0  
 
 1
-1850 2
-1851 4
-1852 -1
-1943 3 
-1987 0
-1988 2 
+1850 1
