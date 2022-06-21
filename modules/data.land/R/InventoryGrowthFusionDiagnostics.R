@@ -22,7 +22,7 @@ InventoryGrowthFusionDiagnostics <- function(jags.out, combined=NULL) {
       
       plot(data$time, ci[2, sel], type = "n", 
            ylim = range(rng), ylab = "DBH (cm)", main = i)
-      PEcAn.visualization::ciEnvelope(data$time, ci[1, sel], ci[3, sel], col = "lightBlue")
+#      PEcAn.visualization::ciEnvelope(data$time, ci[1, sel], ci[3, sel], col = "lightBlue")
       points(data$time, data$z[i, ], pch = "+", cex = 1.5)
       # lines(data$time,z0[i,],lty=2)
       
@@ -34,7 +34,7 @@ InventoryGrowthFusionDiagnostics <- function(jags.out, combined=NULL) {
       
       plot(data$time[-1], inc.ci[2, ], type = "n", 
            ylim = range(inc.ci, na.rm = TRUE), ylab = "Ring Increment (mm)")
-      PEcAn.visualization::ciEnvelope(data$time[-1], inc.ci[1, ], inc.ci[3, ], col = "lightBlue")
+#      PEcAn.visualization::ciEnvelope(data$time[-1], inc.ci[1, ], inc.ci[3, ], col = "lightBlue")
       points(data$time, data$y[i, ] * 5, pch = "+", cex = 1.5, type = "b", lty = 2)
     }
   }
@@ -95,7 +95,7 @@ InventoryGrowthFusionDiagnostics <- function(jags.out, combined=NULL) {
     ci.alpha <- apply(out[, alpha.cols], 2, quantile, c(0.025, 0.5, 0.975))
     plot(alpha.ord, ci.alpha[2, ], type = "n", 
          ylim = range(ci.alpha, na.rm = TRUE), ylab = "Random Effects")
-    PEcAn.visualization::ciEnvelope(alpha.ord, ci.alpha[1, ], ci.alpha[3, ], col = "lightBlue")
+#    PEcAn.visualization::ciEnvelope(alpha.ord, ci.alpha[1, ], ci.alpha[3, ], col = "lightBlue")
     lines(alpha.ord, ci.alpha[2, ], lty = 1, lwd = 2)
     abline(h = 0, lty = 2)
   }
@@ -106,7 +106,7 @@ InventoryGrowthFusionDiagnostics <- function(jags.out, combined=NULL) {
     ci.yr <- apply(out[, year.cols], 2, quantile, c(0.025, 0.5, 0.975))
     plot(data$time, ci.yr[2, ], type = "n", 
          ylim = range(ci.yr, na.rm = TRUE), ylab = "Year Effect")
-    PEcAn.visualization::ciEnvelope(data$time, ci.yr[1, ], ci.yr[3, ], col = "lightBlue")
+#    PEcAn.visualization::ciEnvelope(data$time, ci.yr[1, ], ci.yr[3, ], col = "lightBlue")
     lines(data$time, ci.yr[2, ], lty = 1, lwd = 2)
     abline(h = 0, lty = 2)
   }
