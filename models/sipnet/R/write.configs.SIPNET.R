@@ -1,7 +1,7 @@
 #-------------------------------------------------------------------------------
 # Copyright (c) 2012 University of Illinois, NCSA.
 # All rights reserved. This program and the accompanying materials
-# are made available under the terms of the 
+# are made available under the terms of the
 # University of Illinois/NCSA Open Source License
 # which accompanies this distribution, and is available at
 # http://opensource.ncsa.illinois.edu/license.html
@@ -13,7 +13,7 @@
 ##' @title Writes a configuration files for SIPNET model
 ##' @export
 ##' @author Michael Dietze
-write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs = NULL, IC = NULL, 
+write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs = NULL, IC = NULL,
                                 restart = NULL, spinup = NULL) {
   ### WRITE sipnet.in
   template.in <- system.file("sipnet.in", package = "PEcAn.SIPNET")
@@ -21,13 +21,15 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
   writeLines(config.text, con = file.path(settings$rundir, run.id, "sipnet.in"))
   
   ### WRITE *.clim
-  template.clim <- settings$run$input$met$path  ## read from settings #typo in inputs?
+  template.clim <- settings$run$inputs$met$path  ## read from settings
+  
   if (!is.null(inputs)) {
     ## override if specified in inputs
     if ("met" %in% names(inputs)) {
       template.clim <- inputs$met$path
     }
   }
+  PEcAn.logger::logger.info(paste0("Writing SIPNET configs with input ", template.clim))
   
   # find out where to write run/ouput
   rundir <- file.path(settings$host$rundir, as.character(run.id))
@@ -60,7 +62,6 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
   if (!is.null(settings$host$postrun)) {
     hostteardown <- paste(hostteardown, sep = "\n", paste(settings$host$postrun, collapse = "\n"))
   }
-  
   # create job.sh
   jobsh <- gsub("@HOST_SETUP@", hostsetup, jobsh)
   jobsh <- gsub("@HOST_TEARDOWN@", hostteardown, jobsh)
@@ -73,7 +74,7 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
   jobsh <- gsub("@RUNDIR@", rundir, jobsh)
   
   jobsh <- gsub("@START_DATE@", settings$run$start.date, jobsh)
-  jobsh <- gsub("@END_DATE@", settings$run$end.date, jobsh)
+  jobsh <- gsub("@END_DATE@",settings$run$end.date , jobsh)
   
   jobsh <- gsub("@BINARY@", settings$model$binary, jobsh)
   jobsh <- gsub("@REVISION@", settings$model$revision, jobsh)
@@ -97,8 +98,6 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
   }
   
   param <- read.table(template.param)
-  
- 
   
   #### write run-specific PFT parameters here #### Get parameters being handled by PEcAn
   for (pft in seq_along(trait.values)) {
@@ -155,7 +154,6 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
     } else {
       Amax <- param[id, 2] * SLA
     }
-    
     # Daily fraction of maximum photosynthesis
     if ("AmaxFrac" %in% pft.names) {
       param[which(param[, 1] == "aMaxFrac"), 2] <- pft.traits[which(pft.names == "AmaxFrac")]
@@ -187,7 +185,6 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
     if ("growth_resp_factor" %in% pft.names) {
       param[which(param[, 1] == "growthRespFrac"), 2] <- pft.traits[which(pft.names == "growth_resp_factor")]
     }
-    
     ### !!! NOT YET USED
     #Jmax = NA
     #if("Jmax" %in% pft.names){
@@ -237,19 +234,22 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
       param[which(param[, 1] == "leafTurnoverRate"), 2] <- pft.traits[which(pft.names == "leaf_turnover_rate")]
     }
     
+    if ("wueConst" %in% pft.names) {
+      param[which(param[, 1] == "wueConst"), 2] <- pft.traits[which(pft.names == "wueConst")]
+    }
     # vegetation respiration Q10.
     if ("veg_respiration_Q10" %in% pft.names) {
       param[which(param[, 1] == "vegRespQ10"), 2] <- pft.traits[which(pft.names == "veg_respiration_Q10")]
     }
     
-    # Base vegetation respiration. vegetation maintenance respiration at 0 degrees C (g C respired * g^-1 plant C * day^-1) 
+    # Base vegetation respiration. vegetation maintenance respiration at 0 degrees C (g C respired * g^-1 plant C * day^-1)
     # NOTE: only counts plant wood C - leaves handled elsewhere (both above and below-ground: assumed for now to have same resp. rate)
     # NOTE: read in as per-year rate!
     if ("stem_respiration_rate" %in% pft.names) {
       vegRespQ10 <- param[which(param[, 1] == "vegRespQ10"), 2]
       id <- which(param[, 1] == "baseVegResp")
       ## Convert from umols CO2 kg s-1 to gC g day-1
-      stem_resp_g <- (((pft.traits[which(pft.names == "stem_respiration_rate")]) * 
+      stem_resp_g <- (((pft.traits[which(pft.names == "stem_respiration_rate")]) *
                          (44.0096 / 1e+06) * (12.01 / 44.0096)) / 1000) * 86400
       ## use Q10 to convert stem resp from reference of 25C to 0C param[id,2] =
       ## pft.traits[which(pft.names=='stem_respiration_rate')]*vegRespQ10^(-25/10)
@@ -283,6 +283,42 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
     if ("coarse_root_respiration_Q10" %in% pft.names) {
       param[which(param[, 1] == "coarseRootQ10"), 2] <- pft.traits[which(pft.names == "coarse_root_respiration_Q10")]
     }
+    # WARNING: fineRootAllocation + woodAllocation + leafAllocation isn't supposed to exceed 1
+    # see sipnet.c code L2005 :
+    # fluxes.coarseRootCreation=(1-params.leafAllocation-params.fineRootAllocation-params.woodAllocation)*npp;
+    # priors can be chosen accordingly, and SIPNET doesn't really crash when sum>1 but better keep an eye
+    alloc_params <- c("root_allocation_fraction", "wood_allocation_fraction", "leaf_allocation_fraction")
+    if (all(alloc_params %in% pft.names)) {
+      sum_alloc <- pft.traits[which(pft.names == "root_allocation_fraction")] +
+        pft.traits[which(pft.names == "wood_allocation_fraction")] +
+        pft.traits[which(pft.names == "leaf_allocation_fraction")]
+      if(sum_alloc > 1){
+        # I want this to be a severe for now, lateer can be changed back to warning
+        PEcAn.logger::logger.warn("Sum of allocation parameters exceeds 1 for runid = ", run.id,
+                                  "- This won't break anything since SIPNET has internal check, but notice that such combinations might not take effect in the outputs.")
+      }
+    }
+    
+    
+    # fineRootAllocation
+    if ("root_allocation_fraction" %in% pft.names) {
+      param[which(param[, 1] == "fineRootAllocation"), 2] <- pft.traits[which(pft.names == "root_allocation_fraction")]
+    }
+    
+    # woodAllocation
+    if ("wood_allocation_fraction" %in% pft.names) {
+      param[which(param[, 1] == "woodAllocation"), 2] <- pft.traits[which(pft.names == "wood_allocation_fraction")]
+    }
+    
+    # leafAllocation
+    if ("leaf_allocation_fraction" %in% pft.names) {
+      param[which(param[, 1] == "leafAllocation"), 2] <- pft.traits[which(pft.names == "leaf_allocation_fraction")]
+    }
+    
+    # wood_turnover_rate
+    if ("wood_turnover_rate" %in% pft.names) {
+      param[which(param[, 1] == "woodTurnoverRate"), 2] <- pft.traits[which(pft.names == "wood_turnover_rate")]
+    }
     
     ### ----- Soil parameters soil respiration Q10.
     if ("soil_respiration_Q10" %in% pft.names) {
@@ -292,6 +328,7 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
     if ("som_respiration_rate" %in% pft.names) {
       param[which(param[, 1] == "baseSoilResp"), 2] <- pft.traits[which(pft.names == "som_respiration_rate")]
     }
+    
     # litterBreakdownRate
     if ("turn_over_time" %in% pft.names) {
       id <- which(param[, 1] == "litterBreakdownRate")
@@ -301,11 +338,46 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
     if ("frozenSoilEff" %in% pft.names) {
       param[which(param[, 1] == "frozenSoilEff"), 2] <- pft.traits[which(pft.names == "frozenSoilEff")]
     }
+    
+    # frozenSoilFolREff
+    if ("frozenSoilFolREff" %in% pft.names) {
+      param[which(param[, 1] == "frozenSoilFolREff"), 2] <- pft.traits[which(pft.names == "frozenSoilFolREff")]
+    }
+    
     # soilWHC
     if ("soilWHC" %in% pft.names) {
       param[which(param[, 1] == "soilWHC"), 2] <- pft.traits[which(pft.names == "soilWHC")]
     }
+    # 10/31/2017 IF: these were the two assumptions used in the emulator paper in order to reduce dimensionality
+    # These results in improved winter soil respiration values
+    # they don't affect anything when the seasonal soil respiration functionality in SIPNET is turned-off
+    if(TRUE){
+      # assume soil resp Q10 cold == soil resp Q10
+      param[which(param[, 1] == "soilRespQ10Cold"), 2] <- param[which(param[, 1] == "soilRespQ10"), 2]
+      # default SIPNET prior of baseSoilRespCold was 1/4th of baseSoilResp
+      # assuming they will scale accordingly
+      param[which(param[, 1] == "baseSoilRespCold"), 2] <- param[which(param[, 1] == "baseSoilResp"), 2] * 0.25
+    }
     
+    if ("immedEvapFrac" %in% pft.names) {
+      param[which(param[, 1] == "immedEvapFrac"), 2] <- pft.traits[which(pft.names == "immedEvapFrac")]
+    }
+    
+    if ("leafWHC" %in% pft.names) {
+      param[which(param[, 1] == "leafPoolDepth"), 2] <- pft.traits[which(pft.names == "leafWHC")]
+    }
+    
+    if ("waterRemoveFrac" %in% pft.names) {
+      param[which(param[, 1] == "waterRemoveFrac"), 2] <- pft.traits[which(pft.names == "waterRemoveFrac")]
+    }
+    
+    if ("fastFlowFrac" %in% pft.names) {
+      param[which(param[, 1] == "fastFlowFrac"), 2] <- pft.traits[which(pft.names == "fastFlowFrac")]
+    }
+    
+    if ("rdConst" %in% pft.names) {
+      param[which(param[, 1] == "rdConst"), 2] <- pft.traits[which(pft.names == "rdConst")]
+    }
     ### ----- Phenology parameters GDD leaf on
     if ("GDD" %in% pft.names) {
       param[which(param[, 1] == "gddLeafOn"), 2] <- pft.traits[which(pft.names == "GDD")]
@@ -322,13 +394,48 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
     }
   }  ## end loop over PFTS
   ####### end parameter update
-  
-  #### write INITIAL CONDITIONS here ####
+  #working on reading soil file (only working for 1 soil file)
+  if(length(settings$run$inputs$soilinitcond$path)==1){
+    soil_IC_list <- PEcAn.data.land::pool_ic_netcdf2list(settings$run$inputs$soilinitcond$path)
+    #SoilWHC and LitterWHC
+    if("volume_fraction_of_water_in_soil_at_saturation"%in%names(soil_IC_list$vals)){
+      #SoilWHC
+      param[which(param[, 1] == "soilWHC"), 2] <- mean(unlist(soil_IC_list$vals["volume_fraction_of_water_in_soil_at_saturation"]))*100
+      
+      #LitterWHC
+      #param[which(param[, 1] == "litterWHC"), 2] <- unlist(soil_IC_list$vals["volume_fraction_of_water_in_soil_at_saturation"])[1]*100
+    }
+    if("soil_hydraulic_conductivity_at_saturation"%in%names(soil_IC_list$vals)){
+      #litwaterDrainrate
+      param[which(param[, 1] == "litWaterDrainRate"), 2] <- unlist(soil_IC_list$vals["soil_hydraulic_conductivity_at_saturation"])[1]*100/(3600*24)
+    }
+  }
   if (!is.null(IC)) {
     ic.names <- names(IC)
     ## plantWoodInit gC/m2
-    if ("plantWood" %in% ic.names) {
-      param[which(param[, 1] == "plantWoodInit"), 2] <- IC$plantWood
+    plant_wood_vars <- c("AbvGrndWood", "abvGrndWoodFrac", "coarseRootFrac", "fineRootFrac")
+    if (all(plant_wood_vars %in% ic.names)) {
+      # reconstruct total wood C
+      wood_total_C <- IC$AbvGrndWood / IC$abvGrndWoodFrac
+      #Sanity check
+      if (is.infinite(wood_total_C) | is.nan(wood_total_C) | wood_total_C < 0) {
+        wood_total_C <- 0
+        if (round(IC$AbvGrndWood) > 0 & round(IC$abvGrndWoodFrac, 3) == 0)
+          PEcAn.logger::logger.warn(
+            paste0(
+              "There is a major problem with ",
+              run.id,
+              " in either the model's parameters or IC.",
+              "Because the ABG is estimated=",
+              IC$AbvGrndWood,
+              " while AGB Frac is estimated=",
+              IC$abvGrndWoodFrac
+            )
+          )
+        }
+      param[which(param[, 1] == "plantWoodInit"),  2] <- wood_total_C
+      param[which(param[, 1] == "coarseRootFrac"), 2] <- IC$coarseRootFrac
+      param[which(param[, 1] == "fineRootFrac"),   2] <- IC$fineRootFrac
     }
     ## laiInit m2/m2
     if ("lai" %in% ic.names) {
@@ -359,28 +466,34 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
       param[which(param[, 1] == "microbeInit"), 2] <- IC$microbe
     }
   }
-  else if (!is.null(settings$run$inputs$poolinitcond$path)) {
-    IC.path <- settings$run$inputs$poolinitcond$path
+  else if (length(settings$run$inputs$poolinitcond$path)>0) {
+    ICs_num <- length(settings$run$inputs$poolinitcond$path)
+    IC.path <- settings$run$inputs$poolinitcond$path[[sample(1:ICs_num, 1)]]
     IC.pools <- PEcAn.data.land::prepare_pools(IC.path, constants = list(sla = SLA))
     
     if(!is.null(IC.pools)){
       IC.nc <- ncdf4::nc_open(IC.path) #for additional variables specific to SIPNET
       ## plantWoodInit gC/m2
       if ("wood" %in% names(IC.pools)) {
-        param[which(param[, 1] == "plantWoodInit"), 2] <- IC.pools$wood * 1000 #from PEcAn standard AbvGrndWood kgC/m2
+        param[which(param[, 1] == "plantWoodInit"), 2] <- udunits2::ud.convert(IC.pools$wood, "g m-2", "g m-2")
       }
       ## laiInit m2/m2
       lai <- try(ncdf4::ncvar_get(IC.nc,"LAI"),silent = TRUE)
       if (!is.na(lai) && is.numeric(lai)) {
         param[which(param[, 1] == "laiInit"), 2] <- lai
       }
+      ## neeInit gC/m2
+      nee <- try(ncdf4::ncvar_get(IC.nc,"nee"),silent = TRUE)
+      if (!is.na(nee) && is.numeric(nee)) {
+        param[which(param[, 1] == "neeInit"), 2] <- nee
+      }
       ## litterInit gC/m2
       if ("litter" %in% names(IC.pools)) {
-        param[which(param[, 1] == "litterInit"), 2] <- IC.pools$litter * 1000 #from PEcAn standard litter_carbon_content kg/m2
+        param[which(param[, 1] == "litterInit"), 2] <- udunits2::ud.convert(IC.pools$litter, 'g m-2', 'g m-2') # BETY: kgC m-2
       }
       ## soilInit gC/m2
       if ("soil" %in% names(IC.pools)) {
-        param[which(param[, 1] == "soilInit"), 2] <- sum(IC.pools$soil) * 1000 #from PEcAn standard TotSoilCarb kg C/m2
+        param[which(param[, 1] == "soilInit"), 2] <- udunits2::ud.convert(sum(IC.pools$soil), 'g m-2', 'g m-2') # BETY: kgC m-2
       }
       ## soilWFracInit fraction
       soilWFrac <- try(ncdf4::ncvar_get(IC.nc,"SoilMoistFrac"),silent = TRUE)
@@ -390,16 +503,26 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
       ## litterWFracInit fraction
       litterWFrac <- soilWFrac
       
-      ## snowInit cm water equivalent
+      ## snowInit cm water equivalent (cm = g / cm2 because 1 g water = 1 cm3 water)
       snow = try(ncdf4::ncvar_get(IC.nc,"SWE"),silent = TRUE)
       if (!is.na(snow) && is.numeric(snow)) {
-        param[which(param[, 1] == "snowInit"), 2] <- snow*0.1 #from PEcAn standard SWE kg/m2 (1kg = 1mm)
+        param[which(param[, 1] == "snowInit"), 2] <- udunits2::ud.convert(snow, "kg m-2", "g cm-2")  # BETY: kg m-2
       }
-      ## microbeInit mgC/g soil
+      ## leafOnDay
+      leafOnDay <- try(ncdf4::ncvar_get(IC.nc,"date_of_budburst"),silent = TRUE)
+      if (!is.na(leafOnDay) && is.numeric(leafOnDay)) {
+        param[which(param[, 1] == "leafOnDay"), 2] <- leafOnDay
+      }
+      ## leafOffDay
+      leafOffDay <- try(ncdf4::ncvar_get(IC.nc,"date_of_senescence"),silent = TRUE)
+      if (!is.na(leafOffDay) && is.numeric(leafOffDay)) {
+        param[which(param[, 1] == "leafOffDay"), 2] <- leafOffDay
+      }
       microbe <- try(ncdf4::ncvar_get(IC.nc,"Microbial Biomass C"),silent = TRUE)
       if (!is.na(microbe) && is.numeric(microbe)) {
-        param[which(param[, 1] == "microbeInit"), 2] <- microbe * .001 #BETY Microbial Biomass C mg C kg-1 soil
+        param[which(param[, 1] == "microbeInit"), 2] <- udunits2::ud.convert(microbe, "mg kg-1", "mg g-1") #BETY: mg microbial C kg-1 soil
       }
+      
       ncdf4::nc_close(IC.nc)
     }else{
       PEcAn.logger::logger.error("Bad initial conditions filepath; keeping defaults")
@@ -408,11 +531,23 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
     #some stuff about IC file that we can give in lieu of actual ICs
   }
   
-  write.table(param, file.path(settings$rundir, run.id, "sipnet.param"), row.names = FALSE, col.names = FALSE, 
+  
+  if (!is.null(settings$run$inputs$soilmoisture)) {
+    #read soil moisture netcdf file, grab closet date to start_date, set equal to soilWFrac
+    if(!is.null(settings$run$inputs$soilmoisture$path)){
+      soil.path <- settings$run$inputs$soilmoisture$path
+      soilWFrac <- ncdf4::ncvar_get(ncdf4::nc_open(soil.path), varid = "mass_fraction_of_unfrozen_water_in_soil_moisture")
+      
+      param[which(param[, 1] == "soilWFracInit"), 2] <- soilWFrac
+    }
+    
+  }
+  if(file.exists(file.path(settings$rundir, run.id, "sipnet.param"))) file.rename(file.path(settings$rundir, run.id, "sipnet.param"),file.path(settings$rundir, run.id, paste0("sipnet_",lubridate::year(settings$run$start.date),"_",lubridate::year(settings$run$end.date),".param")))
+  
+
+  write.table(param, file.path(settings$rundir, run.id, "sipnet.param"), row.names = FALSE, col.names = FALSE,
               quote = FALSE)
 } # write.config.SIPNET
-
-
 #--------------------------------------------------------------------------------------------------#
 ##'
 ##' Clear out previous SIPNET config and parameter files.
@@ -420,7 +555,7 @@ write.config.SIPNET <- function(defaults, trait.values, settings, run.id, inputs
 ##' @name remove.config.SIPNET
 ##' @title Clear out previous SIPNET config and parameter files.
 ##' @param main.outdir Primary PEcAn output directory (will be depreciated)
-##' @param settings PEcAn settings file 
+##' @param settings PEcAn settings file
 ##' @return nothing, removes config files as side effect
 ##' @export
 ##'
@@ -442,4 +577,4 @@ remove.config.SIPNET <- function(main.outdir, settings) {
   } else {
     print("*** WARNING: Removal of files on remote host not yet implemented ***")
   }
-} # remove.config.SIPNET
+} # remove.config.SIPNET 

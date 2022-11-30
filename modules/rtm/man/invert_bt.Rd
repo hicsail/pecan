@@ -4,17 +4,21 @@
 \alias{invert_bt}
 \title{Perform Bayesian inversion using BayesianTools package}
 \usage{
-invert_bt(observed, model, prior, custom_settings = list())
+invert_bt(observed, model, prior, custom_settings = list(), loglike = NULL)
 }
 \arguments{
-\item{observed}{Vector of observations}
+\item{observed}{Vector of observations. Ignored if \code{loglike} is not \code{NULL}.}
 
-\item{model}{Function called by log-likelihood. Must be \code{function(params)}
-and return a vector equal to \code{length(observed)} or \code{nrow(observed)}.}
+\item{model}{Function called by log-likelihood. Must be \verb{function(params)}
+and return a vector equal to \code{length(observed)} or \code{nrow(observed)}. Ignored
+if \code{loglike} is not \code{NULL}.}
 
 \item{prior}{BayesianTools prior object.}
 
 \item{custom_settings}{Nested settings list. See Details.}
+
+\item{loglike}{Custom log likelihood function. If \code{NULL}, use \link{rtm_loglike}
+with provided \code{observed} and \code{model}.}
 }
 \description{
 Use samplers from the BayesianTools package to fit models to data. Like
@@ -39,6 +43,14 @@ iteration count than in \code{init}.
 Default is \code{FALSE} because it may be an excessively conservative
 diagnostic.
 \item \code{min_samp} -- Minimum number of samples after burnin before stopping.
+Default is 5000.
+\item \code{max_iter} -- Maximum total number of iterations. Default is 1e6.
+\item \code{lag.max} -- Maximum lag to use for autocorrelation normalization.
+Default is \code{10 * log10(n)} (same as \code{stats::acf} function).
+\item \code{save_progress} -- File name for saving samples between loop
+iterations. If \code{NULL} (default), do not save progress samples.
+\item \code{threshold} -- Threshold for Gelman PSRF convergence diagnostic. Default is 1.1.
+\item \code{verbose_loglike} -- Diagnostic messages in log likelihood output. Default is TRUE.
 }
 }
 

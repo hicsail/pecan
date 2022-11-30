@@ -7,11 +7,11 @@
 ssh(host, ..., args = "")
 }
 \arguments{
-\item{host}{}
+\item{host}{(character) machine to connect to}
 
-\item{...}{}
+\item{...}{Commands to execute. Will be passed as a single quoted string}
 
-\item{args}{}
+\item{args}{futher arguments}
 }
 \description{
 R implementation of SSH

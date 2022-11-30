@@ -9,8 +9,8 @@
 #' @return list
 #' @export
 #'
-#' @examples
 mcmc.list2init <- function(dat) {
+  need_packages("coda")
   
   ## get unique variable names
   allname <- strsplit(colnames(dat[[1]]),"[",fixed = TRUE)
@@ -31,14 +31,13 @@ mcmc.list2init <- function(dat) {
   ## define variables
   ic <- list()
   n <- nrow(dat[[1]])
-  nc <- nchain(dat)
+  nc <- coda::nchain(dat)
   for(c in seq_len(nc)) ic[[c]] <- list()
   
   for(v in seq_along(uname)){
     
     ## detect variable type (scalar, vector, matrix)
     cols <- which(firstname == uname[v])
-    
     if(length(cols) == 1){
       ## SCALAR
       for(c in seq_len(nc)){
@@ -66,7 +65,7 @@ mcmc.list2init <- function(dat) {
         }
         
       } else {
-        PEcAn.utils::logger.severe("dimension not supported",dim,uname[v])
+        PEcAn.logger::logger.severe("dimension not supported",dim,uname[v])
       }
       
     }  ## end else VECTOR or MATRIX

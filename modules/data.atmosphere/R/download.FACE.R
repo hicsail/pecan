@@ -3,20 +3,20 @@
 ##' @name download.FACE
 ##' @title download.FACE
 ##' @export
-##' @param sitename
-##' @param outfolder
-##' @param start_year
-##' @param end_year
+##'
+##' @param sitename sitename
+##' @param outfolder location where output is stored
 ##' @param method Optional. Passed to download.file() function.  Use this to set custom programs such as ncftp to use when
 ##' downloading files from FTP sites
+##' @param start_date desired start date YYYY-MM-DD
+##' @param end_date desired end date YYYY-MM-DD
+##' @param overwrite overwrite existing files? Default is FALSE
+##' @param ... other inputs
 ##' 
 ##' @author Betsy Cowdery
 download.FACE <- function(sitename, outfolder, start_date, end_date, overwrite = FALSE, method, ...) {
   # download.FACE <-
   # function(data.set,outfolder,pkg,raw.host,start_year,end_year,site.id,dbparams,con){
-  
-  library(PEcAn.utils)
-  library(data.table)
   
   start_date <- as.POSIXlt(start_date, tz = "UTC")
   end_date   <- as.POSIXlt(end_date, tz = "UTC")
@@ -38,7 +38,7 @@ download.FACE <- function(sitename, outfolder, start_date, end_date, overwrite =
 
   # return file info
   return(invisible(data.frame(file = out.file, 
-                              host = fqdn(), 
+                              host = PEcAn.remote::fqdn(), 
                               mimetype = "application/x-netcdf", 
                               formatname = "FACE", 
                               startdate = start_date, 

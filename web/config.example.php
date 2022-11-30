@@ -3,6 +3,7 @@
 # Information to connect to the BETY database
 $db_bety_type="pgsql";
 $db_bety_hostname="localhost";
+$db_bety_port=5432;
 $db_bety_username="bety";
 $db_bety_password="bety";
 $db_bety_database="bety";
@@ -23,11 +24,12 @@ $browndog_password="";
 # R binary
 $Rbinary="/usr/bin/R";
 
+# plotting endpoint, leave blank to use php code
+#$api_url="/api/";
+$api_url="";
+
 # sshTunnel binary
 $SSHtunnel=dirname(__FILE__) . DIRECTORY_SEPARATOR . "sshtunnel.sh";
-
-# google map key
-$googleMapKey="";
 
 # Require username/password, can set min level to 0 so nobody can run/delete.
 # 4 = viewer
@@ -50,7 +52,7 @@ $anonymous_page = 99;
 $fqdn=exec('hostname -f');
 
 # List of all host and options. The list should be the server pointing
-# to an array. The second array contains a key value pair used to 
+# to an array. The second array contains a key value pair used to
 # configure the host. Currenly the following options are available:
 # - qsub       : if specified the jobs are launched using qsub, this can
 #                be an empty value to indicate to use default settings.
@@ -65,20 +67,29 @@ $fqdn=exec('hostname -f');
 # - postrun    : any special options to add at the end of the job.
 # - folder     : folder on remote machine, will add username and the
 #                workflowid to the folder name
-# - models     : any special options to add to a specific model that is 
+# - models     : any special options to add to a specific model that is
 #                launched. This is an array of the modeltype and
-#                additional parameters for the job.sh.
+#                additional parameters for the job.sh. If the model with
+#                version is found that will be used, otherwise the more
+#                generic model only will be used.
 # - scratchdir : folder to be used for scratchspace when running certain
 #                models (such as ED)
 $hostlist=array($fqdn => array(),
-                "geo.bu.edu" => 
-                    array("qsub"    => "qsub -V -N @NAME@ -o @STDOUT@ -e @STDERR@ -S /bin/bash",
-                          "jobid"   => "Your job ([0-9]+) .*",
-                          "qstat"   => "qstat -j @JOBID@ || echo DONE",
-                          "prerun"  => "module load udunits R/R-3.0.0_gnu-4.4.6",
-                          "postrun" => "sleep 60",
-                          "models"  => array("ED2" =>
-                              array("prerun"  => "module load hdf5"))));
+                "geo.bu.edu" =>
+                    array("displayname" => "geo",
+                          "qsub"        => "qsub -V -N @NAME@ -o @STDOUT@ -e @STDERR@ -S /bin/bash",
+                          "jobid"       => "Your job ([0-9]+) .*",
+                          "qstat"       => "qstat -j @JOBID@ || echo DONE",
+                          "prerun"      => "module load udunits R/R-3.0.0_gnu-4.4.6",
+                          "postrun"     => "sleep 60",
+                          "models"      =>
+                              array("ED2" =>
+                                        array("prerun"  => "module load hdf5"),
+                                    "ED2 (r82)" =>
+                                        array("prerun"  => "module load hdf5")
+                              )
+                          )
+                );
 
 # Folder where PEcAn is installed
 $R_library_path="/home/carya/R/library";
@@ -97,17 +108,9 @@ $dbfiles_folder=$output_folder . "/dbfiles";
 # of BETYDB
 $betydb="/bety";
 
-# ----------------------------------------------------------------------
-# SIMPLE EDITING OF BETY DATABSE
-# ----------------------------------------------------------------------
-# Number of items to show on a page
-$pagesize = 30;
-
-# Location where logs should be written
-$logfile = "/home/carya/output/betydb.log";
-
-# uncomment the following variable to enable the simple interface
-#$simpleBETY = TRUE;
-
+# syncing details
+$server_url="192.168.0.5";    // local test server
+$client_sceret="";
+$server_auth_token="";
 
 ?>

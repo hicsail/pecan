@@ -3,14 +3,16 @@
 ##' @name download.PalEON
 ##' @title download.PalEON
 ##' @export
-##' @param outfolder
-##' @param start_year
-##' @param end_year
+##'
+##' @param outfolder desired output location
+##' @param start_date desired start date YYYY-MM-DD
+##' @param end_date desired end date YYYY-MM-DD
+##' @param sitename sitename
+##' @param overwrite overwrite existing files? Default is FALSE
+##' @param ... Other inputs
 ##' 
 ##' @author Betsy Cowdery
 download.PalEON <- function(sitename, outfolder, start_date, end_date, overwrite = FALSE, ...) {
-  
-  library(PEcAn.utils)
   
   if (sitename == "Harvard Forest - Lyford Plots (PalEON PHA)") {
     site <- "PHA"
@@ -72,7 +74,7 @@ download.PalEON <- function(sitename, outfolder, start_date, end_date, overwrite
           row <- (which(vlist == v) - 1) * Y * M + (which(ylist == y) - 1) * M + m
           # print(row)
           results$file[row] <- dirname(file)
-          results$host[row] <- fqdn()
+          results$host[row] <- PEcAn.remote::fqdn()
           results$startdate[row] <- paste0(y, "-01-01 00:00:00")
           results$enddate[row] <- paste0(y, "-12-31 23:59:59")
           results$mimetype[row] <- "application/x-netcdf"

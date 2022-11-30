@@ -4,23 +4,22 @@
 \alias{newxtable}
 \title{newxtable}
 \usage{
-newxtable(x, environment = "table", table.placement = "ht", label = NULL,
-  caption = NULL, caption.placement = NULL, align = NULL)
+newxtable(
+  x,
+  environment = "table",
+  table.placement = "ht",
+  label = NULL,
+  caption = NULL,
+  caption.placement = NULL,
+  align = NULL
+)
 }
 \arguments{
 \item{x}{data.frame to be converted to latex table}
 
 \item{environment}{can be 'table'; 'sidewaystable' if using latex rotating package}
 
-\item{table.placement}{}
-
-\item{label}{}
-
-\item{caption}{}
-
-\item{caption.placement}{}
-
-\item{align}{}
+\item{table.placement, label, caption, caption.placement, align}{passed to \code{\link[xtable]{xtable}}}
 }
 \value{
 Latex version of table, with percentages properly formatted
@@ -29,7 +28,7 @@ Latex version of table, with percentages properly formatted
 New xtable
 }
 \details{
-utility to properly escape the '%' sign for latex
+utility to properly escape the '\%' sign for latex
 }
 \author{
 David LeBauer

@@ -5,25 +5,25 @@
 ##' with a more general PEcAn 'load_data' function eventually.
 ##' 
 ##' @param settings = PEcAn settings list
+##' @param bety database connection object
+##' @param external.formats formats list
 ##'
 ##' @return A list containg the loaded input data, plus metadata
 ##'
 ##' @author Ryan Kelly, Istem Fer
 ##' @export
-load.pda.data <- function(settings, bety) {
-  
-  library(PEcAn.benchmark)
-  
+load.pda.data <- function(settings, bety, external.formats = NULL) {
+
   # Outlining setup for multiple datasets
-  
+
   inputs         <- list()
   input.settings <- settings$assim.batch$inputs
   n.input        <- length(input.settings)
-  
+ 
   for(i in seq_len(n.input)) {
     inputs[[i]]               <- list()
     
-    inputs[[i]]$variable.name <- lapply(input.settings[[i]]$variable.name, convert.expr)
+    inputs[[i]]$variable.name <- lapply(input.settings[[i]]$variable.name, PEcAn.utils::convert.expr)
     data.var                  <-  sapply(inputs[[i]]$variable.name, `[[`, "variable.drv")
 
     data.path                 <- input.settings[[i]]$path
@@ -39,11 +39,16 @@ load.pda.data <- function(settings, bety) {
       PEcAn.logger::logger.error("Must provide both ID and PATH for all data assimilation inputs.")
     }
     
-    format <- query.format.vars(bety = bety, input.id = inputs[[i]]$input.id)
+    if(is.null(bety)){
+      format <- external.formats[[i]]
+    }else{
+      format <- PEcAn.DB::query.format.vars(bety = bety, input.id = inputs[[i]]$input.id)
+    }
+
     
     vars.used.index <- which(format$vars$bety_name %in% data.var)
     
-    inputs[[i]]$data <- load_data(data.path = data.path, 
+    inputs[[i]]$data <- PEcAn.benchmark::load_data(data.path = data.path,
                                   format = format, 
                                   start_year = lubridate::year(settings$run$start.date), 
                                   end_year = lubridate::year(settings$run$end.date), 
@@ -60,22 +65,23 @@ load.pda.data <- function(settings, bety) {
       
       var.obs <- colnames(inputs[[i]]$data)[!colnames(inputs[[i]]$data) %in% c("UST", "posix", "year", format$vars[format$time.row,]$bety_name)]
       
-      AMFo                     <- inputs[[i]]$data[[var.obs]]
-      UST                      <- inputs[[i]]$data$UST
-      AMFo[AMFo == -9999]      <- NA
-      AMFo[UST < ustar.thresh] <- NA
+      AMFo                        <- inputs[[i]]$data[[var.obs]]
+      UST                         <- inputs[[i]]$data$UST
+      AMFo[AMFo == -9999]         <- NA
+      AMFo[UST < ustar.thresh]    <- NA
+      inputs[[i]]$data[[var.obs]] <- AMFo # write filtered data
       
       # Have to just pretend like these quality control variables exist...
       AMFq  <- rep(0, length(AMFo))
       flags <- TRUE
       
-      AMF.params <- flux.uncertainty(AMFo, AMFq, flags, bin.num = 20)
+      AMF.params <- PEcAn.uncertainty::flux.uncertainty(AMFo, AMFq, flags, bin.num = 20)
       
       inputs[[i]]$obs <- AMFo
       inputs[[i]]$par <- c(AMF.params$intercept, AMF.params$slopeP, AMF.params$slopeN)
     }else{
       inputs[[i]]$obs <- inputs[[i]]$data[colnames(inputs[[i]]$data) %in% data.var]
-      inputs[[i]]$par <- sd(unlist(inputs[[i]]$obs), na.rm = TRUE) # testing
+      inputs[[i]]$par <- stats::sd(unlist(inputs[[i]]$obs), na.rm = TRUE) # testing
     }
     inputs[[i]]$n <- sum(!is.na(inputs[[i]]$obs))
   }  # end loop over files

@@ -4,13 +4,15 @@
 \alias{metric_timeseries_plot}
 \title{Timeseries Plot}
 \usage{
-metric_timeseries_plot(metric_dat, var, filename = NA,
-  draw.plot = is.na(filename))
+metric_timeseries_plot(
+  metric_dat,
+  var,
+  filename = NA,
+  draw.plot = is.na(filename)
+)
 }
-\arguments{
-\item{metric_dat}{dataframe}
-
-\item{var}{character}
+\description{
+Timeseries Plot
 }
 \author{
 Betsy Cowdery

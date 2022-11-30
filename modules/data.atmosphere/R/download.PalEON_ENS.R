@@ -1,9 +1,13 @@
 ##' @title Download PalEON met ensemble files
 ##'
 ##' @export
-##' @param outfolder
-##' @param start_year
-##' @param end_year
+##'
+##' @param outfolder desired output folder
+##' @param start_date desired start date YYYY-MM-DD
+##' @param end_date desired end date YYYY-MM-DD
+##' @param sitename sitename
+##' @param overwrite overwrite existing files? Default is FALSE
+##' @param ... Other inputs
 ##' 
 ##' @author Betsy Cowdery, Mike Dietze
 download.PalEON_ENS <- function(sitename, outfolder, start_date, end_date, overwrite = FALSE, ...) {
@@ -43,7 +47,7 @@ download.PalEON_ENS <- function(sitename, outfolder, start_date, end_date, overw
                  })
     
     results[[i]] <- data.frame(file = ens_files, 
-                          host = rep(fqdn(),rows), 
+                          host = rep(PEcAn.remote::fqdn(),rows), 
                           mimetype = rep("application/x-netcdf",rows), 
                           formatname = rep("ALMA",rows),  ## would really like to switch to CF
                           startdate = paste0(ens_years, "-01-01 00:00:00"), 

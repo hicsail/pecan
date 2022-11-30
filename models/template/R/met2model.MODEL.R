@@ -16,6 +16,7 @@
 ##' @param in.path path on disk where CF file lives
 ##' @param in.prefix prefix for each file
 ##' @param outfolder location where model specific output is written.
+##' @param overwrite logical: replace output files if they already exist?
 ##' @return OK if everything was succesful.
 ##' @export
 ##' @author Rob Kooper
@@ -24,7 +25,7 @@ met2model.MODEL <- function(in.path, in.prefix, outfolder, overwrite = FALSE) {
   PEcAn.logger::logger.severe("NOT IMPLEMENTED")
 
   # Please follow the PEcAn style guide:
-  # https://pecan.gitbooks.io/pecan-documentation/content/developers_guide/Coding_style.html
+  # https://pecanproject.github.io/pecan-documentation/master/coding-style.html
   
   # Note that `library()` calls should _never_ appear here; instead, put
   # packages dependencies in the DESCRIPTION file, under "Imports:".

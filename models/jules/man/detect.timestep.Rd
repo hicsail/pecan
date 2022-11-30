@@ -7,11 +7,10 @@
 detect.timestep(met.dir, met.regexp, start_date)
 }
 \arguments{
-\item{met.dir}{}
-
-\item{met.regexp}{}
-
 \item{start_date}{}
+}
+\value{
+a difftime object
 }
 \description{
 Detect timestep of JULES met files

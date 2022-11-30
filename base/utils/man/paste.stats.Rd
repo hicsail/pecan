@@ -4,22 +4,26 @@
 \alias{paste.stats}
 \title{Paste Stats}
 \usage{
-paste.stats(mcmc.summary, median, lcl, ucl, n = 2)
+paste.stats(median, lcl, ucl, n = 2)
 }
 \arguments{
-\item{mcmc.summary}{}
+\item{median}{50-percent quantile}
 
-\item{median}{}
+\item{lcl}{lower confidence limit}
 
-\item{lcl}{}
+\item{ucl}{upper confidence limit}
 
-\item{ucl}{}
+\item{n}{significant digits for printing. Passed to \code{\link{tabnum}}}
 }
 \description{
 A helper function for building a LaTex table.
 }
 \details{
 Used by \code{\link{get.parameter.stat}}.
+}
+\examples{
+paste.stats(3.333333, 5.00001, 6.22222, n = 3)
+# [1] "$3.33(5,6.22)$"
 }
 \author{
 David LeBauer

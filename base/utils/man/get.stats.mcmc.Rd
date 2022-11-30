@@ -7,9 +7,9 @@
 get.stats.mcmc(mcmc.summary, sample.size)
 }
 \arguments{
-\item{mcmc.summary}{}
+\item{mcmc.summary}{probably produced by \code{\link[coda]{summary.mcmc}}}
 
-\item{sample.size}{}
+\item{sample.size}{passed as 'n' in returned list}
 }
 \value{
 list with summary statistics for parameters in an MCMC chain

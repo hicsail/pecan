@@ -62,7 +62,7 @@ if ($authentication) {
             workflow creation process.</p>
 
             <label>Offline mode:</label>
-            <span id="error" class="small">This will disable Google Maps</span>
+            <span id="error" class="small">This will disable Maps</span>
             <input name="offline" id="offline" style="align: left" type="checkbox" value="offline">
             <div class="spacer"></div>
 
@@ -74,14 +74,7 @@ if ($authentication) {
 
             <div class="spacer"></div>
         </form>
-<?php whoami(); ?>
-<p>
-  <a href="https://pecanproject.github.io/pecan-documentation/master/" target="_blank">Documentation</a>
-<br>
-  <a href="https://gitter.im/PecanProject/pecan" target="_blank">Chat Room</a>
-<br>
-  <a href="https://github.com/PecanProject/pecan/issues/new" target="_blank">Bug Report</a>
-</p>
+        <?php left_footer(); ?>
     </div>
     <div id="output">
         <h1>Introduction</h1>
