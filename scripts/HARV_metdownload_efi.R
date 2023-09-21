@@ -44,7 +44,7 @@ for(t in seq_along(runDays)){
   #set up path for met2model
   output_path <- file.path(nc_dir, "noaa", "NOAAGEFS_1hr", sitename, runDays[t], "00")
   ########## Met2Model For SIPNET ##############
-  outfolder = file.path(clim_dir, "noaa_clim", sitename, runDays[t])
+  outfolder = file.path(clim_dir, sitename, runDays[t])
   if(!dir.exists(outfolder)){dir.create(outfolder, recursive = TRUE)}
   
   in.path = output_path
