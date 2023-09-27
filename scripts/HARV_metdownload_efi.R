@@ -11,7 +11,7 @@ source(paste0(pecan_home, "/modules/data.atmosphere/R/noaa_gefs_efi_helper.R"))
 
 library(dplyr)
 option_list = list(optparse::make_option("--start.date",
-                                         default = Sys.Date(),
+                                         default = Sys.Date()-1,
                                          type="character"),
                    optparse::make_option("--jumpback",
                                          default = 10,
