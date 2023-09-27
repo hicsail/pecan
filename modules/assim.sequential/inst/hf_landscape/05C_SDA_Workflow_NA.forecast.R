@@ -19,7 +19,7 @@ minio_host <- Sys.getenv("MINIO_HOST")
 minio_port <- Sys.getenv("MINIO_PORT")
 minio_key <- Sys.getenv("MINIO_KEY")
 minio_secret <- Sys.getenv("MINIO_SECRET")
-minio_arrow_bucket <- Sys.getenv("MINIO_BUCKET")
+minio_bucket <- Sys.getenv("MINIO_BUCKET")
 
 ################# Initial configuration (one time): ############################
 ##  * update local paths (uncomment, run once, recomment)
@@ -124,7 +124,7 @@ for (s in seq_along(runDays)) {
 ## minio settings and helper functions
 source(file.path(pecanhome,"modules/assim.sequential/inst/hf_landscape/PEcAn2EFI.R"))
 # helper function for minio URIs
-minio_path <- function(...) paste(minio_arrow_bucket, ..., sep = "/")
+minio_path <- function(...) paste(minio_bucket, ..., sep = "/")
 minio_uri <- function(...) {
   template <- "s3://%s:%s@%s?scheme=%s&endpoint_override=%s%s%s"
   sprintf(template, minio_key, minio_secret, minio_path(...), minio_scheme, minio_host, ":", minio_port)
