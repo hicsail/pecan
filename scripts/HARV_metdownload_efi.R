@@ -11,61 +11,66 @@ source(paste0(pecan_home, "/modules/data.atmosphere/R/noaa_gefs_efi_helper.R"))
 
 library(dplyr)
 option_list = list(optparse::make_option("--start.date",
-                                         default = Sys.Date()-1,
-                                         type="character"),
-                   optparse::make_option("--jumpback",
-                                         default = 10,
-                                         type="integer")
+				default = toString(Sys.Date()-1),
+				type="character"),
+		optparse::make_option("--jumpback",
+				default = 10,
+				type="integer"),
+		optparse::make_option("--jumpback.date",
+				type="character")
 )
 args <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
-if(is.null(args$jumpback)) args$jumpback = 10
+startdate <- as.Date(args$start.date)
+if(!is.null(args$jumpback.date))
+	args$jumpback = as.numeric(startdate - as.Date(args$jumpback.date))
+if(is.null(args$jumpback))
+	args$jumpback = 10
 jumpback = args$jumpback
 
 #set fcn inputs
-startdate = as.Date(args$start.date)
 site.lat = 42.5
 site.lon = -72.15
 sitename <- "HARV"
 siteid <- 646
 runDays <- format(seq(from=as.POSIXlt(startdate) - lubridate::days(jumpback),
-               to=as.POSIXlt(as.character(startdate)),
-               by="days"),"%Y-%m-%d")
+				to=as.POSIXlt(as.character(startdate)),
+				by="days"),"%Y-%m-%d")
 print("args set")
 
 for(t in seq_along(runDays)){
-  print(runDays[t])
-  
-  #download met using EFI fcns
-  tmp = download.NOAA_GEFS_EFI(sitename = sitename,
-                                                 outfolder = nc_dir,
-                                                 start_date = runDays[t],
-                                                 site.lat = site.lat,
-                                                 site.lon = site.lon)
-  #set up path for met2model
-  output_path <- file.path(nc_dir, "noaa", "NOAAGEFS_1hr", sitename, runDays[t], "00")
-  ########## Met2Model For SIPNET ##############
-  outfolder = file.path(clim_dir, sitename, runDays[t])
-  if(!dir.exists(outfolder)){dir.create(outfolder, recursive = TRUE)}
-  
-  in.path = output_path
-  in.prefix = list.files(output_path)
-  
-  end_date = as.Date(runDays[t]) + lubridate::days(35)
-  
-  for(l in 1:length(in.prefix)){
-    
-    PEcAn.SIPNET::met2model.SIPNET(in.path = in.path, 
-                                   in.prefix = in.prefix[l], 
-                                   outfolder = outfolder, 
-                                   start_date = runDays[t], 
-                                   end_date = end_date,
-                                   overwrite = FALSE,
-                                   verbose = FALSE, 
-                                   year.fragment = TRUE) 
-    
-  } 
-  print(paste0("Look for data in: ", outfolder))
-  
+	print(runDays[t])
+	
+	#download met using EFI fcns
+	tmp = download.NOAA_GEFS_EFI(sitename = sitename,
+			outfolder = nc_dir,
+			start_date = runDays[t],
+			site.lat = site.lat,
+			site.lon = site.lon)
+	#set up path for met2model
+	output_path <- file.path(nc_dir, "noaa", "NOAAGEFS_1hr", sitename, runDays[t], "00")
+	########## Met2Model For SIPNET ##############
+	outfolder = file.path(clim_dir, sitename, runDays[t])
+	if(!dir.exists(outfolder)){dir.create(outfolder, recursive = TRUE)}
+	
+	in.path = output_path
+	in.prefix = list.files(output_path)
+	
+	end_date = as.Date(runDays[t]) + lubridate::days(35)
+	
+	for(l in 1:length(in.prefix)){
+		
+		PEcAn.SIPNET::met2model.SIPNET(in.path = in.path, 
+				in.prefix = in.prefix[l], 
+				outfolder = outfolder, 
+				start_date = runDays[t], 
+				end_date = end_date,
+				overwrite = FALSE,
+				verbose = FALSE, 
+				year.fragment = TRUE) 
+		
+	} 
+	print(paste0("Look for data in: ", outfolder))
+	
 }
 print("done")
 
