@@ -3,23 +3,42 @@
 ###########  CONFIGURATION ###################
 
 ## original start date was 2022-05-17
-runDays <- seq(as.Date("2021-09-26"), as.Date("2023-07-10"), by="days")
-FORCE = FALSE  ## should we overwrite previously completed runs
-GEN_FIGURES = FALSE ## should we generate figures?
 
 ## forecast configuration
-projectdir = "/projectnb/dietzelab/dietze/hf_landscape_SDA/test03/" ## main folder
+projectdir = Sys.getenv("PROJECT_DIR") ## main folder
 set = readRDS(file.path(projectdir,"pecan.RDS"))
-pecanhome = "/home/dietze/pecan"  ## directory where pecan is installed 
+pecan_home = Sys.getenv("PECAN_HOME")  ## directory where pecan is installed 
+
+source(paste0(pecan_home, "/modules/data.atmosphere/R/download_noaa_gefs_efi.R"))
+source(paste0(pecan_home, "/modules/data.atmosphere/R/noaa_gefs_efi_helper.R"))
+library(dplyr)
+
+option_list = list(
+    optparse::make_option("--start.date", type="character"),
+    optparse::make_option("--jumpback.date", type="character"),
+    optparse::make_option("--force", default=FALSE, type="logical"),
+    optparse::make_option("--gen.figures", default=FALSE, type="logical")
+)
+args <- optparse::parse_args(optparse::OptionParser(option_list = option_list))
+
+if(is.null(args$jumpback.date) || is.null(args$start.date))
+    stop(paste0("Please specify the jumpback and start date, for example:\nRscript pecan/modules/assim.sequential/inst/hf_landscape/05B_SDA_Workflow_NA.reanalysis.R --jumpback.date=", toString(Sys.Date()-10), " --start.date=", toString(Sys.Date()-1)))
+
+runDays <- seq(as.Date(args$jumpback.date), as.Date(args$start.date), by="days")
+FORCE = args$force  ## should we overwrite previously completed runs
+GEN_FIGURES = args$gen.figures ## should we generate figures?
 
 ## S3 bucket for output
-source(file.path(pecanhome,"modules/assim.sequential/inst/hf_landscape/minio_secrets.R"))
 ## minio_secrets contains the following:
 #minio_key <- Sys.getenv("MINIO_ACCESS_KEY", "username")
 #minio_secret <- Sys.getenv("MINIO_SECRET_KEY", "password")
-minio_host <- Sys.getenv("MINIO_HOST", "test-pecan.bu.edu")
-minio_port <- Sys.getenv("MINIO_PORT", "9000")
-minio_arrow_bucket <- Sys.getenv("MINIO_ARROW_BUCKET", "hf-landscape-v2")
+minio_scheme <- Sys.getenv("MINIO_SCHEME", "http")
+minio_public <- as.logical(Sys.getenv("MINIO_PUBLIC", "TRUE"))
+minio_host <- Sys.getenv("MINIO_HOST")
+minio_port <- Sys.getenv("MINIO_PORT")
+minio_key <- Sys.getenv("MINIO_KEY")
+minio_secret <- Sys.getenv("MINIO_SECRET")
+minio_bucket <- Sys.getenv("MINIO_BUCKET")
 
 ################# Initial configuration (one time): ############################
 ##  * update local paths (uncomment, run once, recomment)
@@ -41,7 +60,7 @@ minio_arrow_bucket <- Sys.getenv("MINIO_ARROW_BUCKET", "hf-landscape-v2")
 ###########  RUN REANALYSIS ####################
 for (s in seq_along(runDays)) {
   ## did we do this run already?
-  now  = file.path(projectdir,paste0("FNA",runDays[s]))
+  now  = paste0(projectdir,"/FNA",runDays[s])
   print(now)
   this.out = dir(file.path(now,"out"),full.names = TRUE)
   if(length(this.out) > 0 & !FORCE) next
@@ -52,7 +71,7 @@ for (s in seq_along(runDays)) {
   while(as.character(yesterday) %in% NoMet & yesterday - runDays[s] < lubridate::days(35) ){
     yesterday = yesterday - lubridate::days(1)
   }
-  prev = file.path(projectdir,paste0("FNA",yesterday,"/"))
+  prev = paste0(projectdir,"/FNA",yesterday)
   if(dir.exists(prev)){
     ## is there output there?
     prev.out = dir(file.path(prev,"out"),full.names = TRUE)
@@ -61,7 +80,7 @@ for (s in seq_along(runDays)) {
       if(min(prev.files)>0){
         
         #########   RUN FORECAST   ########
-        msg = system2(file.path(pecanhome,"modules/assim.sequential/inst/hf_landscape/05_SDA_Workflow_NA.R"),
+        msg = system2(file.path(pecan_home,"modules/assim.sequential/inst/hf_landscape/05_SDA_Workflow_NA.R"),
                       paste("--start.date",runDays[s],
                             "--prev",prev,
                             "--settings",file.path(projectdir,"pecan.RDS")),
@@ -145,18 +164,22 @@ for (s in seq_along(runDays)) {
 ##########################################
 ## push output to minio in EFI standard ##
 ##########################################
-source(file.path(pecanhome,"modules/assim.sequential/inst/hf_landscape/PEcAn2EFI.R"))
+source(file.path(pecan_home,"modules/assim.sequential/inst/hf_landscape/PEcAn2EFI.R"))
 # helper function for minio URIs
-minio_path <- function(...) paste(minio_arrow_bucket, ..., sep = "/")
+minio_path <- function(...) paste(minio_bucket, ..., sep = "/")
 minio_uri <- function(...) {
-  template <- "s3://%s:%s@%s?scheme=http&endpoint_override=%s%s%s"
-  sprintf(template, minio_key, minio_secret, minio_path(...), minio_host, ":", minio_port)
+    template <- "s3://%s:%s@%s?scheme=%s&endpoint_override=%s%s%s"
+    sprintf(template, minio_key, minio_secret, minio_path(...), minio_scheme, minio_host, ":", minio_port)
 }
 minio_uri_public <- function(...) {
-  template <- "s3://%s?scheme=http&endpoint_override=%s%s%s"
-  sprintf(template, minio_path(...), minio_host, ":", minio_port)
+  if(minio_public) {
+    template <- "s3://%s?scheme=%s&endpoint_override=%s%s%s"
+    sprintf(template, minio_path(...), minio_scheme, minio_host, ":", minio_port)
+  } else {
+    template <- "s3://%s:%s@%s?scheme=%s&endpoint_override=%s%s%s"
+    sprintf(template, minio_key, minio_secret, minio_path(...), minio_scheme, minio_host, ":", minio_port)
+  }
 }
-
 #runDays <- seq(as.Date("2023-06-22"), as.Date("2023-07-10"), by="days")
 
 ## loop over dates

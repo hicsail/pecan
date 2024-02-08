@@ -1,16 +1,25 @@
 #!/usr/bin/env Rscript
 ## Forecast helper script around 05_SDA_Workflow_NA
-.libPaths(c("/projectnb/dietzelab/dietze/test-pecan/R/library",.libPaths()))
+
+## Add required libraries
+library("magrittr")
+library("dplyr")
 
 ## forecast configuration
-projectdir = "/projectnb/dietzelab/dietze/hf_landscape_SDA/test02/" ## main folder
+## projectdir = "/projectnb/dietzelab/dietze/hf_landscape_SDA/forecast_example/" ## main folder
+projectdir = Sys.getenv("PROJECT_DIR")
 set = readRDS(file.path(projectdir,"pecan.RDS"))
-pecanhome = "/home/dietze/pecan"  ## directory where pecan is installed 
+## pecanhome = "/home/dietze/pecan"  ## directory where pecan is installed 
+pecanhome = Sys.getenv("PECAN_HOME")
 
 ## S3 bucket for output
-minio_host <- Sys.getenv("MINIO_HOST", "test-pecan.bu.edu")
-minio_port <- Sys.getenv("MINIO_PORT", "9000")
-minio_arrow_bucket <- Sys.getenv("MINIO_ARROW_BUCKET", "hf-landscape-none")
+minio_scheme <- Sys.getenv("MINIO_SCHEME", "http")
+minio_public <- Sys.getenv("MINIO_PUBLIC", TRUE)
+minio_host <- Sys.getenv("MINIO_HOST")
+minio_port <- Sys.getenv("MINIO_PORT")
+minio_key <- Sys.getenv("MINIO_KEY")
+minio_secret <- Sys.getenv("MINIO_SECRET")
+minio_bucket <- Sys.getenv("MINIO_BUCKET")
 
 ################# Initial configuration (one time): ############################
 ##  * update local paths (uncomment, run once, recomment)
@@ -115,14 +124,19 @@ for (s in seq_along(runDays)) {
 ## minio settings and helper functions
 source(file.path(pecanhome,"modules/assim.sequential/inst/hf_landscape/PEcAn2EFI.R"))
 # helper function for minio URIs
-minio_path <- function(...) paste(minio_arrow_bucket, ..., sep = "/")
+minio_path <- function(...) paste(minio_bucket, ..., sep = "/")
 minio_uri <- function(...) {
-  template <- "s3://%s:%s@%s?scheme=http&endpoint_override=%s%s%s"
-  sprintf(template, minio_key, minio_secret, minio_path(...), minio_host, ":", minio_port)
+  template <- "s3://%s:%s@%s?scheme=%s&endpoint_override=%s%s%s"
+  sprintf(template, minio_key, minio_secret, minio_path(...), minio_scheme, minio_host, ":", minio_port)
 }
 minio_uri_public <- function(...) {
-  template <- "s3://%s?scheme=http&endpoint_override=%s%s%s"
-  sprintf(template, minio_path(...), minio_host, ":", minio_port)
+  if(minio_public) {
+    template <- "s3://%s:%s@%s?scheme=%s&endpoint_override=%s%s%s"
+    sprintf(template, minio_key, minio_secret, minio_path(...), minio_scheme, minio_host, ":", minio_port)
+  } else {
+    template <- "s3://%s?scheme=%s&endpoint_override=%s%s%s"
+    sprintf(template, minio_path(...), minio_scheme, minio_host, ":", minio_port)
+  }
 }
 
 ## loop over dates
@@ -170,7 +184,7 @@ for (s in seq_along(runDays)) {
   out = tidyr::pivot_longer(out,5:ncol(out),names_to = "variable",values_to = "prediction")
   
   ## push to container in parquet format
-  out |> dplyr::group_by(reference_datetime) |> arrow::write_dataset(minio_uri(),format="parquet")
+  out |> dplyr::group_by(as.Date(reference_datetime)) |> arrow::write_dataset(minio_uri(),format="parquet", hive_style=FALSE)
   
 }
 
